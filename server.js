@@ -4,34 +4,29 @@ const fs = require("fs");
 const path = require("path");
 const dgram = require("dgram");
 const packet = require("native-dns-packet");
-const toml = require("toml");
 const mm = require("micromatch");
 
-const log = require("./logger");
-const util = require("./util.js");
-const providers = require("./providers");
-const NonA = require("./non-a");
-const A = require("./a");
+const log = require("./lib/logger");
+const util = require("./lib/util.js");
+const providers = require("./lib/providers");
+const Config = require("./lib/config");
 
-const defaults = {
-	port: 53,
-	host: "127.0.0.1",
-	nameservers: ["8.8.8.8", "8.8.4.4"],
-	timeout: 10000,
-	zones: []
-};
+const A = require("./lib/query-types/a");
+const NonA = require("./lib/query-types/non-a");
 
-const config = Object.assign(
-	defaults,
-	toml.parse(fs.readFileSync(path.join(__dirname, "config.toml"), "utf-8"))
-);
+const configFilePath = path.join(__dirname, "config.toml");
 
-log.debug("options: %j", config);
+const config = new Config().load(configFilePath).watch(configFilePath);
+config.on("update", function() {
+	A.reload();
+	NonA.reload();
+});
 
 const server = dgram.createSocket("udp4");
 
 server.on("listening", function() {
-	log.info("we are up and listening at %s on %s", config.host, config.port);
+	const c = config.getData();
+	log.info("we are up and listening at %s on %s", c.host, c.port);
 });
 
 server.on("error", function(err) {
@@ -40,7 +35,7 @@ server.on("error", function(err) {
 });
 
 server.on("message", function(message, rinfo) {
-	let returner = false;
+	const c = config.getData();
 
 	const query = packet.parse(message);
 	const domain = query.question[0].name;
@@ -49,10 +44,10 @@ server.on("message", function(message, rinfo) {
 	const reply = response => server.send(response, 0, response.length, rinfo.port, rinfo.address);
 
 	let cfgs = {
-		sources: config.nameservers.map(s => ({ server: s }))
+		sources: c.nameservers.map(s => ({ server: s }))
 	};
 	let cfgIsDefault = true;
-	for (let h of config.zones) {
+	for (let h of c.zones) {
 		if (!h.for) continue;
 		if (mm.some([domain], h.for, { nocase: true })) {
 			cfgs = h;
@@ -62,12 +57,12 @@ server.on("message", function(message, rinfo) {
 	}
 
 	if (type === util.records.A) {
-		A(cfgs, config.timeout, message).then(reply).catch(log.debug);
+		A.handle(cfgs, c.timeout, message).then(reply).catch(log.debug);
 	} else if (type === util.records.AAAA && !cfgIsDefault) {
 		return;
 	} else {
-		NonA(config.nameservers, config.timeout, message).then(reply).catch(log.debug);
+		NonA.handle(c.nameservers, c.timeout, message).then(reply).catch(log.debug);
 	}
 });
 
-server.bind(config.port, config.host);
+server.bind(config.getData().port, config.getData().host);
