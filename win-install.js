@@ -1,7 +1,8 @@
-var Service = require("node-windows").Service;
 const path = require("path");
+const Service = require("node-windows").Service;
+
 // Create a new service object
-var svc = new Service({
+const svc = new Service({
 	name: "NeetDNS",
 	description: "NeetDNS name server",
 	script: path.join(__dirname, "server.js")
