@@ -42,9 +42,10 @@ server.on("message", function(message, rinfo) {
 	const type = query.question[0].type;
 
 	const reply = response => server.send(response, 0, response.length, rinfo.port, rinfo.address);
+	const defaultSources = c.nameservers.map(s => ({ server: s }));
 
 	let cfgs = {
-		sources: c.nameservers.map(s => ({ server: s }))
+		sources: defaultSources
 	};
 	let cfgIsDefault = true;
 	for (let h of c.zones) {
@@ -54,6 +55,9 @@ server.on("message", function(message, rinfo) {
 			cfgIsDefault = false;
 			break;
 		}
+	}
+	if (!cfgs.sources) {
+		cfgs.sources = defaultSources;
 	}
 
 	if (type === util.records.A) {
