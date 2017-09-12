@@ -8,6 +8,7 @@ package-lock.json
 
 daemon
 config.toml
+gfh.js
 
 # Runtime data
 pids
