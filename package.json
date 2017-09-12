@@ -10,9 +10,11 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
+		"chance": "^1.0.11",
 		"debug": "^2.6.8",
 		"micromatch": "^3.0.4",
 		"native-dns-packet": "^0.1.1",
+		"random-ip": "0.0.1",
 		"tcp-ping": "^0.1.1",
 		"toml": "^2.3.2"
 	},
